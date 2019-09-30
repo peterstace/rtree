@@ -2,6 +2,7 @@ package rtree
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/bits"
 )
@@ -93,14 +94,19 @@ func (t *RTree) joinRoots(r1, r2 int) {
 		},
 	})
 	t.RootIndex = len(t.Nodes) - 1
+	t.Nodes[r1].ParentIndex = t.RootIndex
+	t.Nodes[r2].ParentIndex = t.RootIndex
 }
 
 func (t *RTree) adjustTree(n, nn int) (int, int) {
+	fmt.Println("\t\t[adjustTree] n nn ", n, nn)
 	for {
+		fmt.Println("\t\t[adjustTree] rootIndex", t.RootIndex)
 		if n == t.RootIndex {
 			return n, nn
 		}
 		parent := t.Nodes[n].ParentIndex
+		fmt.Println("\t\t[adjustTree] parent", parent)
 		parentEntry := -1
 		for i, entry := range t.Nodes[parent].Entries {
 			if entry.Index == n {
