@@ -11,7 +11,7 @@ import (
 func TestRandom(t *testing.T) {
 	for maxCapacity := 2; maxCapacity <= 3; maxCapacity++ {
 		for minCapacity := 1; minCapacity <= maxCapacity/2; minCapacity++ {
-			for population := 0; population < 5; population++ {
+			for population := 0; population < 14; population++ {
 				name := fmt.Sprintf("min_%d_max_%d_pop_%d", minCapacity, maxCapacity, population)
 				t.Run(name, func(t *testing.T) {
 					fmt.Println("running test ", name)
@@ -81,43 +81,47 @@ func checkInvariants(t *testing.T, rt RTree) {
 	t.Logf("")
 	t.Logf("node count: %v", len(rt.Nodes))
 	for i, n := range rt.Nodes {
-		t.Logf("%d: leaf=%t parent=%d numEntries=%d", i, n.IsLeaf, n.ParentIndex, len(n.Entries))
+		t.Logf("%d: leaf=%t numEntries=%d", i, n.IsLeaf, len(n.Entries))
 		for j, e := range n.Entries {
 			t.Logf("\t%d: index=%d bbox=%v", j, e.Index, e.BBox)
 		}
 	}
 
 	// Only one node (the root) should have -1 as the parent.
-	var roots []int
-	for i, n := range rt.Nodes {
-		if n.ParentIndex == -1 {
-			roots = append(roots, i)
+	/*
+		var roots []int
+		for i, n := range rt.Nodes {
+			if n.ParentIndex == -1 {
+				roots = append(roots, i)
+			}
 		}
-	}
-	if len(roots) != 1 {
-		t.Fatalf("expected 1 node with parent -1, but got: %v", roots)
-	}
-	if roots[0] != rt.RootIndex {
-		t.Fatalf("expected the root to have parent -1")
-	}
+		if len(roots) != 1 {
+			t.Fatalf("expected 1 node with parent -1, but got: %v", roots)
+		}
+		if roots[0] != rt.RootIndex {
+			t.Fatalf("expected the root to have parent -1")
+		}
+	*/
 
 	// From every node except the root, the parent node (via the parent index)
 	// should contain an entry for that node.
-	for i, node := range rt.Nodes {
-		if node.ParentIndex == -1 {
-			continue
-		}
-		var count int
-		parent := rt.Nodes[node.ParentIndex]
-		for _, e := range parent.Entries {
-			if e.Index == i {
-				count++
+	/*
+		for i, node := range rt.Nodes {
+			if node.ParentIndex == -1 {
+				continue
+			}
+			var count int
+			parent := rt.Nodes[node.ParentIndex]
+			for _, e := range parent.Entries {
+				if e.Index == i {
+					count++
+				}
+			}
+			if count != 1 {
+				t.Fatalf("expected 1 parent/child return trip, but got: %d (node index %d)", count, i)
 			}
 		}
-		if count != 1 {
-			t.Fatalf("expected 1 parent/child return trip, but got: %d (node index %d)", count, i)
-		}
-	}
+	*/
 
 	// TODO: each leaf can reach the root node by traversing the parents.
 
