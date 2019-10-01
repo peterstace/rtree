@@ -66,6 +66,15 @@ func (t *RTree) Search(bb BBox, callback func(index int) error) error {
 func (t *RTree) Insert(bb BBox, dataIndex int) {
 	leaf := t.chooseLeafNode(bb)
 	t.Nodes[leaf].Entries = append(t.Nodes[leaf].Entries, Entry{BBox: bb, Index: dataIndex})
+	if leaf != t.RootIndex {
+		for i := range t.Nodes[t.Nodes[leaf].ParentIndex].Entries {
+			e := &t.Nodes[t.Nodes[leaf].ParentIndex].Entries[i]
+			if e.Index == leaf {
+				e.BBox = combine(e.BBox, bb)
+				break
+			}
+		}
+	}
 	if len(t.Nodes[leaf].Entries) <= t.MaxChildren {
 		return
 	}
@@ -99,8 +108,8 @@ func (t *RTree) joinRoots(r1, r2 int) {
 }
 
 func (t *RTree) adjustTree(n, nn int) (int, int) {
-	fmt.Println("\t\t[adjustTree] n nn ", n, nn)
 	for {
+		fmt.Println("\t\t[adjustTree] n nn ", n, nn)
 		fmt.Println("\t\t[adjustTree] rootIndex", t.RootIndex)
 		if n == t.RootIndex {
 			return n, nn
@@ -114,6 +123,7 @@ func (t *RTree) adjustTree(n, nn int) (int, int) {
 				break
 			}
 		}
+		fmt.Println("\t\t[adjustTree] parentEntry", parentEntry)
 		t.Nodes[parent].Entries[parentEntry].BBox = t.calculateBound(n)
 
 		// AT4
@@ -123,6 +133,7 @@ func (t *RTree) adjustTree(n, nn int) (int, int) {
 				BBox:  t.calculateBound(nn),
 				Index: nn,
 			}
+			t.Nodes[nn].ParentIndex = parent
 
 			t.Nodes[parent].Entries = append(t.Nodes[parent].Entries, newEntry)
 
@@ -211,9 +222,9 @@ func (t *RTree) splitNode(n int) int {
 }
 
 func (t *RTree) chooseLeafNode(bb BBox) int {
-	if len(t.Nodes) == 0 {
-		t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil})
-	}
+	//if len(t.Nodes) == 0 {
+	//t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil})
+	//}
 	node := t.RootIndex
 
 	for {
