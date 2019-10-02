@@ -2,7 +2,6 @@ package rtree
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/bits"
 )
@@ -57,41 +56,43 @@ func (t *RTree) findParent(n int) int {
 	panic("could not find parent")
 }
 
-func (t *RTree) Search(bb BBox, callback func(index int) error) error {
-	var recurse func(*Node) error
-	recurse = func(n *Node) error {
+func (t *RTree) Search(bb BBox, callback func(index int)) {
+	var recurse func(*Node)
+	recurse = func(n *Node) {
 		for _, entry := range n.Entries {
 			if !overlap(entry.BBox, bb) {
 				continue
 			}
-			var err error
 			if n.IsLeaf {
-				err = callback(entry.Index)
+				callback(entry.Index)
 			} else {
-				err = recurse(&t.Nodes[entry.Index])
-			}
-			if err != nil {
-				return err
+				recurse(&t.Nodes[entry.Index])
 			}
 		}
-		return nil
 	}
-	return recurse(&t.Nodes[t.RootIndex])
+	recurse(&t.Nodes[t.RootIndex])
 }
 
 func (t *RTree) Insert(bb BBox, dataIndex int) {
 	leaf := t.chooseLeafNode(bb)
 	t.Nodes[leaf].Entries = append(t.Nodes[leaf].Entries, Entry{BBox: bb, Index: dataIndex})
-	if leaf != t.RootIndex {
-		parentIndex := t.findParent(leaf)
-		for i := range t.Nodes[parentIndex].Entries {
-			e := &t.Nodes[parentIndex].Entries[i]
-			if e.Index == leaf {
+	//fmt.Println("\t\t[Insert] chosen leaf", leaf)
+
+	current := leaf
+	for current != t.RootIndex {
+		//fmt.Println("\t\t[Insert] current", current)
+		parent := t.findParent(current)
+		//fmt.Println("\t\t[Insert] parent", parent)
+		for i := range t.Nodes[parent].Entries {
+			e := &t.Nodes[parent].Entries[i]
+			if e.Index == current {
 				e.BBox = combine(e.BBox, bb)
 				break
 			}
 		}
+		current = parent
 	}
+
 	if len(t.Nodes[leaf].Entries) <= t.MaxChildren {
 		return
 	}
@@ -126,8 +127,8 @@ func (t *RTree) joinRoots(r1, r2 int) {
 
 func (t *RTree) adjustTree(n, nn int) (int, int) {
 	for {
-		fmt.Println("\t\t[adjustTree] n nn ", n, nn)
-		fmt.Println("\t\t[adjustTree] rootIndex", t.RootIndex)
+		//fmt.Println("\t\t[adjustTree] n nn ", n, nn)
+		//fmt.Println("\t\t[adjustTree] rootIndex", t.RootIndex)
 		if n == t.RootIndex {
 			return n, nn
 		}
@@ -141,7 +142,7 @@ func (t *RTree) adjustTree(n, nn int) (int, int) {
 				break
 			}
 		}
-		fmt.Println("\t\t[adjustTree] parentEntry", parentEntry)
+		//fmt.Println("\t\t[adjustTree] parentEntry", parentEntry)
 		t.Nodes[parent].Entries[parentEntry].BBox = t.calculateBound(n)
 
 		// AT4
