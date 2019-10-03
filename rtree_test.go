@@ -14,12 +14,10 @@ func TestRandom(t *testing.T) {
 			for population := 0; population < 50; population++ {
 				name := fmt.Sprintf("min_%d_max_%d_pop_%d", minCapacity, maxCapacity, population)
 				t.Run(name, func(t *testing.T) {
-					//fmt.Println("running test ", name)
 					rnd := rand.New(rand.NewSource(0))
 					boxes := make([]BBox, population)
 					for i := range boxes {
 						boxes[i] = randomBox(rnd, 0.9, 0.1)
-						//fmt.Println("\tbox", i, boxes[i])
 					}
 
 					rt, err := New(minCapacity, maxCapacity)
@@ -27,7 +25,6 @@ func TestRandom(t *testing.T) {
 						t.Fatal(err)
 					}
 					for i, bb := range boxes {
-						//fmt.Println("\tinserting", i)
 						rt.Insert(bb, i)
 						checkInvariants(t, rt)
 					}
@@ -35,7 +32,6 @@ func TestRandom(t *testing.T) {
 					for i := 0; i < 10; i++ {
 						searchBB := randomBox(rnd, 0.5, 0.5)
 						var got []int
-						//fmt.Println("\tseacrhing", i)
 						rt.Search(searchBB, func(idx int) {
 							got = append(got, idx)
 						})
@@ -86,8 +82,6 @@ func checkInvariants(t *testing.T, rt RTree) {
 		}
 	}
 
-	// TODO: there are no loops
-
 	// For each non-leaf node, its entries should have the smallest bounding boxes that cover its children.
 	for i, parentNode := range rt.Nodes {
 		if parentNode.IsLeaf {
@@ -102,6 +96,35 @@ func checkInvariants(t *testing.T, rt RTree) {
 			if union != parentEntry.BBox {
 				t.Fatalf("expected parent to have smallest bbox that covers its children (node=%d, entry=%d)", i, j)
 			}
+		}
+	}
+
+	// Each leaf should be reached exactly once from the root. This implies
+	// that the tree has no loops, and there are no orphan leafs. Also checks
+	// that each non-leaf is visited at least once (i.e. no orphan non-leaves).
+	leafCount := make(map[int]int)
+	visited := make(map[int]bool)
+	var recurse func(int)
+	recurse = func(n int) {
+		visited[n] = true
+		node := &rt.Nodes[n]
+		if node.IsLeaf {
+			leafCount[n]++
+			return
+		}
+		for _, entry := range node.Entries {
+			recurse(entry.Index)
+		}
+	}
+	recurse(rt.RootIndex)
+	for leaf, count := range leafCount {
+		if count != 1 {
+			t.Fatalf("leaf %d visited %d times", leaf, count)
+		}
+	}
+	for i := range rt.Nodes {
+		if !visited[i] {
+			t.Fatalf("node %d was not visited", i)
 		}
 	}
 }
