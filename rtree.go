@@ -11,7 +11,6 @@ type BBox struct {
 }
 
 type Node struct {
-	//ParentIndex int
 	IsLeaf  bool
 	Entries []Entry
 }
@@ -36,7 +35,7 @@ func New(minChildren, maxChildren int) (RTree, error) {
 		MinChildren: minChildren,
 		MaxChildren: maxChildren,
 		RootIndex:   0,
-		Nodes:       []Node{Node{ /*ParentIndex: -1,*/ IsLeaf: true, Entries: nil}},
+		Nodes:       []Node{Node{IsLeaf: true, Entries: nil}},
 	}, nil
 }
 
@@ -76,13 +75,10 @@ func (t *RTree) Search(bb BBox, callback func(index int)) {
 func (t *RTree) Insert(bb BBox, dataIndex int) {
 	leaf := t.chooseLeafNode(bb)
 	t.Nodes[leaf].Entries = append(t.Nodes[leaf].Entries, Entry{BBox: bb, Index: dataIndex})
-	//fmt.Println("\t\t[Insert] chosen leaf", leaf)
 
 	current := leaf
 	for current != t.RootIndex {
-		//fmt.Println("\t\t[Insert] current", current)
 		parent := t.findParent(current)
-		//fmt.Println("\t\t[Insert] parent", parent)
 		for i := range t.Nodes[parent].Entries {
 			e := &t.Nodes[parent].Entries[i]
 			if e.Index == current {
@@ -107,7 +103,6 @@ func (t *RTree) Insert(bb BBox, dataIndex int) {
 
 func (t *RTree) joinRoots(r1, r2 int) {
 	t.Nodes = append(t.Nodes, Node{
-		//ParentIndex: -1,
 		IsLeaf: false,
 		Entries: []Entry{
 			Entry{
@@ -121,20 +116,14 @@ func (t *RTree) joinRoots(r1, r2 int) {
 		},
 	})
 	t.RootIndex = len(t.Nodes) - 1
-	//t.Nodes[r1].ParentIndex = t.RootIndex
-	//t.Nodes[r2].ParentIndex = t.RootIndex
 }
 
 func (t *RTree) adjustTree(n, nn int) (int, int) {
 	for {
-		//fmt.Println("\t\t[adjustTree] n nn ", n, nn)
-		//fmt.Println("\t\t[adjustTree] rootIndex", t.RootIndex)
 		if n == t.RootIndex {
 			return n, nn
 		}
 		parent := t.findParent(n)
-		//parent := t.Nodes[n].ParentIndex
-		//fmt.Println("\t\t[adjustTree] parent", parent)
 		parentEntry := -1
 		for i, entry := range t.Nodes[parent].Entries {
 			if entry.Index == n {
@@ -142,7 +131,6 @@ func (t *RTree) adjustTree(n, nn int) (int, int) {
 				break
 			}
 		}
-		//fmt.Println("\t\t[adjustTree] parentEntry", parentEntry)
 		t.Nodes[parent].Entries[parentEntry].BBox = t.calculateBound(n)
 
 		// AT4
@@ -152,10 +140,7 @@ func (t *RTree) adjustTree(n, nn int) (int, int) {
 				BBox:  t.calculateBound(nn),
 				Index: nn,
 			}
-			//t.Nodes[nn].ParentIndex = parent
-
 			t.Nodes[parent].Entries = append(t.Nodes[parent].Entries, newEntry)
-
 			if len(t.Nodes[parent].Entries) > t.MaxChildren {
 				pp = t.splitNode(parent)
 			}
@@ -241,9 +226,6 @@ func (t *RTree) splitNode(n int) int {
 }
 
 func (t *RTree) chooseLeafNode(bb BBox) int {
-	//if len(t.Nodes) == 0 {
-	//t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil})
-	//}
 	node := t.RootIndex
 
 	for {
