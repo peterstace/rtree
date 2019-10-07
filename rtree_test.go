@@ -9,9 +9,30 @@ import (
 )
 
 func TestRandom(t *testing.T) {
-	for maxCapacity := 2; maxCapacity <= 10; maxCapacity++ {
-		for minCapacity := 1; minCapacity <= maxCapacity/2; minCapacity++ {
-			for population := 0; population < 50; population++ {
+	for population := 0; population < 50; population++ {
+		t.Run(fmt.Sprintf("bulk_%d", population), func(t *testing.T) {
+			rt, err := New(2, 4) // TODO: these don't make sense for bulk loading
+			if err != nil {
+				t.Fatal(err)
+			}
+			rnd := rand.New(rand.NewSource(0))
+			boxes := make([]BBox, population)
+			for i := range boxes {
+				boxes[i] = randomBox(rnd, 0.9, 0.1)
+			}
+
+			inserts := make([]InsertItem, len(boxes))
+			for i := range inserts {
+				inserts[i].BBox = boxes[i]
+				inserts[i].DataIndex = i
+			}
+			rt.BulkInsert(inserts)
+
+			checkInvariants(t, rt)
+			checkSearch(t, rt, boxes, rnd)
+		})
+		for maxCapacity := 2; maxCapacity <= 10; maxCapacity++ {
+			for minCapacity := 1; minCapacity <= maxCapacity/2; minCapacity++ {
 				name := fmt.Sprintf("min_%d_max_%d_pop_%d", minCapacity, maxCapacity, population)
 				t.Run(name, func(t *testing.T) {
 					rnd := rand.New(rand.NewSource(0))
@@ -29,30 +50,34 @@ func TestRandom(t *testing.T) {
 						checkInvariants(t, rt)
 					}
 
-					for i := 0; i < 10; i++ {
-						searchBB := randomBox(rnd, 0.5, 0.5)
-						var got []int
-						rt.Search(searchBB, func(idx int) {
-							got = append(got, idx)
-						})
-
-						var want []int
-						for i, bb := range boxes {
-							if overlap(bb, searchBB) {
-								want = append(want, i)
-							}
-						}
-
-						sort.Ints(want)
-						sort.Ints(got)
-
-						if !reflect.DeepEqual(want, got) {
-							t.Logf("search bbox: %v", searchBB)
-							t.Errorf("search failed, got: %v want: %v", got, want)
-						}
-					}
+					checkSearch(t, rt, boxes, rnd)
 				})
 			}
+		}
+	}
+}
+
+func checkSearch(t *testing.T, rt RTree, boxes []BBox, rnd *rand.Rand) {
+	for i := 0; i < 10; i++ {
+		searchBB := randomBox(rnd, 0.5, 0.5)
+		var got []int
+		rt.Search(searchBB, func(idx int) {
+			got = append(got, idx)
+		})
+
+		var want []int
+		for i, bb := range boxes {
+			if overlap(bb, searchBB) {
+				want = append(want, i)
+			}
+		}
+
+		sort.Ints(want)
+		sort.Ints(got)
+
+		if !reflect.DeepEqual(want, got) {
+			t.Logf("search bbox: %v", searchBB)
+			t.Errorf("search failed, got: %v want: %v", got, want)
 		}
 	}
 }
