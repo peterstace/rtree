@@ -6,37 +6,43 @@ import (
 	"math/bits"
 )
 
+// BBox is an axis-aligned bounding box.
 type BBox struct {
 	MinX, MinY, MaxX, MaxY float64
 }
 
+// Node is a node in an R-Tree. Nodes can either be leaf nodes holding entries
+// for terminal items, or intermediate nodes holding entries for more nodes.
 type Node struct {
 	IsLeaf  bool
 	Entries []Entry
 }
 
+// Entry is an entry under a node, leading either to terminal items, or more nodes.
 type Entry struct {
 	BBox  BBox
 	Index int
 }
 
+// RTree is an in-memory R-Tree data structure. Its zero value is an empty R-Tree.
 type RTree struct {
-	MinChildren int
-	MaxChildren int
-	RootIndex   int
-	Nodes       []Node
+	RootIndex int
+	Nodes     []Node
 }
 
-func New(minChildren, maxChildren int) (RTree, error) {
+// NewInsertionPolicy creates a new insertion policy with the given node size
+// parameters.
+func NewInsertionPolicy(minChildren, maxChildren int) (InsertionPolicy, error) {
 	if minChildren > maxChildren/2 {
-		return RTree{}, errors.New("min children must be less than or equal to half of the max children")
+		return InsertionPolicy{}, errors.New("min children must be less than or equal to half of the max children")
 	}
-	return RTree{
-		MinChildren: minChildren,
-		MaxChildren: maxChildren,
-		RootIndex:   0,
-		Nodes:       []Node{Node{IsLeaf: true, Entries: nil}},
-	}, nil
+	return InsertionPolicy{minChildren, maxChildren}, nil
+}
+
+// InsertionPolicy alters the behaviour when inserting new data to an RTree.
+type InsertionPolicy struct {
+	minChildren int
+	maxChildren int
 }
 
 // findParent finds the parent of a non-root node n by starting at the root and
@@ -55,7 +61,13 @@ func (t *RTree) findParent(n int) int {
 	panic("could not find parent")
 }
 
+// Search looks for any items in the tree that overlap with the the given
+// bounding box. The callback is called with the item index for each found
+// item.
 func (t *RTree) Search(bb BBox, callback func(index int)) {
+	if len(t.Nodes) == 0 {
+		return
+	}
 	var recurse func(*Node)
 	recurse = func(n *Node) {
 		for _, entry := range n.Entries {
@@ -72,7 +84,13 @@ func (t *RTree) Search(bb BBox, callback func(index int)) {
 	recurse(&t.Nodes[t.RootIndex])
 }
 
-func (t *RTree) Insert(bb BBox, dataIndex int) {
+// Insert adds a new data item to the RTree.
+func (t *RTree) Insert(bb BBox, dataIndex int, policy InsertionPolicy) {
+	if len(t.Nodes) == 0 {
+		t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil})
+		t.RootIndex = 0
+	}
+
 	leaf := t.chooseLeafNode(bb)
 	t.Nodes[leaf].Entries = append(t.Nodes[leaf].Entries, Entry{BBox: bb, Index: dataIndex})
 
@@ -89,12 +107,12 @@ func (t *RTree) Insert(bb BBox, dataIndex int) {
 		current = parent
 	}
 
-	if len(t.Nodes[leaf].Entries) <= t.MaxChildren {
+	if len(t.Nodes[leaf].Entries) <= policy.maxChildren {
 		return
 	}
 
-	newNode := t.splitNode(leaf)
-	root1, root2 := t.adjustTree(leaf, newNode)
+	newNode := t.splitNode(leaf, policy)
+	root1, root2 := t.adjustTree(leaf, newNode, policy)
 
 	if root2 != -1 {
 		t.joinRoots(root1, root2)
@@ -118,7 +136,7 @@ func (t *RTree) joinRoots(r1, r2 int) {
 	t.RootIndex = len(t.Nodes) - 1
 }
 
-func (t *RTree) adjustTree(n, nn int) (int, int) {
+func (t *RTree) adjustTree(n, nn int, policy InsertionPolicy) (int, int) {
 	for {
 		if n == t.RootIndex {
 			return n, nn
@@ -141,8 +159,8 @@ func (t *RTree) adjustTree(n, nn int) (int, int) {
 				Index: nn,
 			}
 			t.Nodes[parent].Entries = append(t.Nodes[parent].Entries, newEntry)
-			if len(t.Nodes[parent].Entries) > t.MaxChildren {
-				pp = t.splitNode(parent)
+			if len(t.Nodes[parent].Entries) > policy.maxChildren {
+				pp = t.splitNode(parent, policy)
 			}
 		}
 
@@ -162,7 +180,7 @@ func (t *RTree) calculateBound(n int) BBox {
 // splitNode splits node with index n into two nodes. The first node replaces
 // n, and the second node is newly created. The return value is the index of
 // the new node.
-func (t *RTree) splitNode(n int) int {
+func (t *RTree) splitNode(n int, policy InsertionPolicy) int {
 	var (
 		// All zeros would not be valid split, so start at 1.
 		minSplit = uint64(1)
@@ -179,7 +197,7 @@ func (t *RTree) splitNode(n int) int {
 	bestArea := math.Inf(+1)
 	var bestSplit uint64
 	for split := minSplit; split <= maxSplit; split++ {
-		if bits.OnesCount64(split) < t.MinChildren {
+		if bits.OnesCount64(split) < policy.minChildren {
 			continue
 		}
 		var bboxA, bboxB BBox
