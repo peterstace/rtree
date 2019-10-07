@@ -6,15 +6,19 @@ import (
 	"math/bits"
 )
 
+// BBox is an axis-aligned bounding box.
 type BBox struct {
 	MinX, MinY, MaxX, MaxY float64
 }
 
+// Node is a node in an R-Tree. Nodes can either be leaf nodes holding entries
+// for terminal items, or intermediate nodes holding entries for more nodes.
 type Node struct {
 	IsLeaf  bool
 	Entries []Entry
 }
 
+// Entry is an entry under a node, leading either to terminal items, or more nodes.
 type Entry struct {
 	BBox  BBox
 	Index int
@@ -26,6 +30,8 @@ type RTree struct {
 	Nodes     []Node
 }
 
+// NewInsertionPolicy creates a new insertion policy with the given node size
+// parameters.
 func NewInsertionPolicy(minChildren, maxChildren int) (InsertionPolicy, error) {
 	if minChildren > maxChildren/2 {
 		return InsertionPolicy{}, errors.New("min children must be less than or equal to half of the max children")
@@ -55,6 +61,9 @@ func (t *RTree) findParent(n int) int {
 	panic("could not find parent")
 }
 
+// Search looks for any items in the tree that overlap with the the given
+// bounding box. The callback is called with the item index for each found
+// item.
 func (t *RTree) Search(bb BBox, callback func(index int)) {
 	if len(t.Nodes) == 0 {
 		return
@@ -75,6 +84,7 @@ func (t *RTree) Search(bb BBox, callback func(index int)) {
 	recurse(&t.Nodes[t.RootIndex])
 }
 
+// Insert adds a new data item to the RTree.
 func (t *RTree) Insert(bb BBox, dataIndex int, policy InsertionPolicy) {
 	if len(t.Nodes) == 0 {
 		t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil})

@@ -2,11 +2,15 @@ package rtree
 
 import "sort"
 
+// InsertItem is an item that can be inserted for bulk loading.
 type InsertItem struct {
 	BBox      BBox
 	DataIndex int
 }
 
+// BulkInsert bulk loads multiple new items (along with any existing items)
+// into the tree. The bulk load operation is optimised for creating R-Trees
+// with minimal node overlap. This allows for fast searching.
 func (t *RTree) BulkInsert(inserts []InsertItem) {
 	// Find any existing entries, and add them to the new list.
 	items := make([]InsertItem, len(inserts))
