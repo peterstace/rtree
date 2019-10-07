@@ -11,10 +11,7 @@ import (
 func TestRandom(t *testing.T) {
 	for population := 0; population < 50; population++ {
 		t.Run(fmt.Sprintf("bulk_%d", population), func(t *testing.T) {
-			rt, err := New(2, 4) // TODO: these don't make sense for bulk loading
-			if err != nil {
-				t.Fatal(err)
-			}
+			var rt RTree
 			rnd := rand.New(rand.NewSource(0))
 			boxes := make([]BBox, population)
 			for i := range boxes {
@@ -41,12 +38,13 @@ func TestRandom(t *testing.T) {
 						boxes[i] = randomBox(rnd, 0.9, 0.1)
 					}
 
-					rt, err := New(minCapacity, maxCapacity)
+					ins, err := NewInsertionPolicy(minCapacity, maxCapacity)
 					if err != nil {
 						t.Fatal(err)
 					}
+					var rt RTree
 					for i, bb := range boxes {
-						rt.Insert(bb, i)
+						rt.Insert(bb, i, ins)
 						checkInvariants(t, rt)
 					}
 
