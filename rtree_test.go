@@ -11,7 +11,6 @@ import (
 func TestRandom(t *testing.T) {
 	for population := 0; population < 50; population++ {
 		t.Run(fmt.Sprintf("bulk_%d", population), func(t *testing.T) {
-			var rt RTree
 			rnd := rand.New(rand.NewSource(0))
 			boxes := make([]BBox, population)
 			for i := range boxes {
@@ -23,7 +22,7 @@ func TestRandom(t *testing.T) {
 				inserts[i].BBox = boxes[i]
 				inserts[i].DataIndex = i
 			}
-			rt.BulkInsert(inserts)
+			rt := BulkLoad(inserts)
 
 			checkInvariants(t, rt)
 			checkSearch(t, rt, boxes, rnd)

@@ -8,14 +8,15 @@ type InsertItem struct {
 	DataIndex int
 }
 
-// BulkInsert bulk loads multiple new items (along with any existing items)
-// into the tree. The bulk load operation is optimised for creating R-Trees
-// with minimal node overlap. This allows for fast searching.
-func (t *RTree) BulkInsert(inserts []InsertItem) {
+// BulkLoad bulk loads multiple items into a new R-Tree. The bulk load
+// operation is optimised for creating R-Trees with minimal node overlap. This
+// allows for fast searching.
+func BulkLoad(inserts []InsertItem) RTree {
+	var tr RTree
 	// Find any existing entries, and add them to the new list.
 	items := make([]InsertItem, len(inserts))
 	copy(items, inserts)
-	for _, node := range t.Nodes {
+	for _, node := range tr.Nodes {
 		if !node.IsLeaf {
 			continue
 		}
@@ -26,9 +27,9 @@ func (t *RTree) BulkInsert(inserts []InsertItem) {
 		}
 	}
 
-	t.Nodes = nil
-	n := t.bulkInsert(items)
-	t.RootIndex = n
+	n := tr.bulkInsert(items)
+	tr.RootIndex = n
+	return tr
 }
 
 func (t *RTree) bulkInsert(items []InsertItem) int {
