@@ -50,21 +50,16 @@ func (t *RTree) bulkInsert(items []InsertItem) int {
 		bbox = combine(bbox, item.BBox)
 	}
 
-	var sortBy func(i, j int) bool
-	if bbox.MaxX-bbox.MinX > bbox.MaxY-bbox.MinY {
-		sortBy = func(i, j int) bool {
-			bi := items[i].BBox
-			bj := items[j].BBox
+	horizontal := bbox.MaxX-bbox.MinX > bbox.MaxY-bbox.MinY
+	sort.Slice(items, func(i, j int) bool {
+		bi := items[i].BBox
+		bj := items[j].BBox
+		if horizontal {
 			return bi.MinX+bi.MaxX < bj.MinX+bj.MaxX
-		}
-	} else {
-		sortBy = func(i, j int) bool {
-			bi := items[i].BBox
-			bj := items[j].BBox
+		} else {
 			return bi.MinY+bi.MaxY < bj.MinY+bj.MaxY
 		}
-	}
-	sort.Slice(items, sortBy)
+	})
 
 	split := len(items) / 2
 	n1 := t.bulkInsert(items[:split])
