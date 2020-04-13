@@ -23,18 +23,32 @@ type InsertionPolicy struct {
 
 // findParent finds the parent of a non-root node n by starting at the root and
 // traversing until the parent of the node is found.
-func (t *RTree) findParent(n int) int {
-	for i, node := range t.Nodes {
-		if node.IsLeaf {
-			continue
+func (t *RTree) findParent(targetChild int) int {
+	bb := t.calculateBound(targetChild)
+	parent := -1
+	var recurse func(node int)
+	recurse = func(node int) {
+		if t.Nodes[node].IsLeaf {
+			return // leaves cannot be parents
 		}
-		for _, entry := range node.Entries {
-			if entry.Index == n {
-				return i
+		for _, entry := range t.Nodes[node].Entries {
+			if entry.Index == targetChild {
+				parent = node
+				return
+			}
+			if overlap(entry.BBox, bb) {
+				recurse(entry.Index)
+				if parent != -1 {
+					return
+				}
 			}
 		}
 	}
-	panic("could not find parent")
+	recurse(t.RootIndex)
+	if parent == -1 {
+		panic("could not find parent")
+	}
+	return parent
 }
 
 // Insert adds a new data item to the RTree.
