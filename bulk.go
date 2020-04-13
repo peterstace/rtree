@@ -34,7 +34,7 @@ func BulkLoad(inserts []InsertItem) RTree {
 
 func (t *RTree) bulkInsert(items []InsertItem) int {
 	if len(items) <= 2 {
-		node := Node{IsLeaf: true}
+		node := Node{IsLeaf: true, Parent: -1}
 		for _, item := range items {
 			node.Entries = append(node.Entries, Entry{
 				BBox:  item.BBox,
@@ -65,10 +65,12 @@ func (t *RTree) bulkInsert(items []InsertItem) int {
 	n1 := t.bulkInsert(items[:split])
 	n2 := t.bulkInsert(items[split:])
 
-	parent := Node{IsLeaf: false, Entries: []Entry{
+	parent := Node{IsLeaf: false, Parent: -1, Entries: []Entry{
 		Entry{BBox: t.calculateBound(n1), Index: n1},
 		Entry{BBox: t.calculateBound(n2), Index: n2},
 	}}
 	t.Nodes = append(t.Nodes, parent)
+	t.Nodes[n1].Parent = len(t.Nodes) - 1
+	t.Nodes[n2].Parent = len(t.Nodes) - 1
 	return len(t.Nodes) - 1
 }

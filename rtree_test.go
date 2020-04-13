@@ -9,7 +9,7 @@ import (
 )
 
 func TestRandom(t *testing.T) {
-	for population := 0; population < 50; population++ {
+	for population := 0; population < 75; population++ {
 		t.Run(fmt.Sprintf("bulk_%d", population), func(t *testing.T) {
 			rnd := rand.New(rand.NewSource(0))
 			boxes := make([]BBox, population)
@@ -96,11 +96,35 @@ func randomBox(rnd *rand.Rand, maxStart, maxWidth float64) BBox {
 
 func checkInvariants(t *testing.T, rt RTree) {
 	t.Logf("")
-	t.Logf("node count: %v", len(rt.Nodes))
+	t.Logf("RTree description:")
+	t.Logf("node_count=%v, root=%d", len(rt.Nodes), rt.RootIndex)
 	for i, n := range rt.Nodes {
-		t.Logf("%d: leaf=%t numEntries=%d", i, n.IsLeaf, len(n.Entries))
+		t.Logf("%d: leaf=%t numEntries=%d parent=%d", i, n.IsLeaf, len(n.Entries), n.Parent)
 		for j, e := range n.Entries {
 			t.Logf("\t%d: index=%d bbox=%v", j, e.Index, e.BBox)
+		}
+	}
+
+	// Each node has the correct parent set.
+	for i, node := range rt.Nodes {
+		if i == rt.RootIndex {
+			if node.Parent != -1 {
+				t.Fatalf("expected root to have parent -1, but has %d", node.Parent)
+			}
+			continue
+		}
+		if node.Parent == -1 {
+			t.Fatalf("expected parent for non-root not to be -1, but was -1")
+		}
+
+		var matchingChildren int
+		for _, entry := range rt.Nodes[node.Parent].Entries {
+			if entry.Index == i {
+				matchingChildren++
+			}
+		}
+		if matchingChildren != 1 {
+			t.Fatalf("expected parent to have 1 matching child, but has %d", matchingChildren)
 		}
 	}
 

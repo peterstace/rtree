@@ -5,6 +5,7 @@ package rtree
 type Node struct {
 	IsLeaf  bool
 	Entries []Entry
+	Parent  int
 }
 
 // Entry is an entry under a node, leading either to terminal items, or more nodes.

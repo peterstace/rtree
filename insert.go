@@ -21,40 +21,10 @@ type InsertionPolicy struct {
 	maxChildren int
 }
 
-// findParent finds the parent of a non-root node n by starting at the root and
-// traversing until the parent of the node is found.
-func (t *RTree) findParent(targetChild int) int {
-	bb := t.calculateBound(targetChild)
-	parent := -1
-	var recurse func(node int)
-	recurse = func(node int) {
-		if t.Nodes[node].IsLeaf {
-			return // leaves cannot be parents
-		}
-		for _, entry := range t.Nodes[node].Entries {
-			if entry.Index == targetChild {
-				parent = node
-				return
-			}
-			if overlap(entry.BBox, bb) {
-				recurse(entry.Index)
-				if parent != -1 {
-					return
-				}
-			}
-		}
-	}
-	recurse(t.RootIndex)
-	if parent == -1 {
-		panic("could not find parent")
-	}
-	return parent
-}
-
 // Insert adds a new data item to the RTree.
 func (t *RTree) Insert(bb BBox, dataIndex int, policy InsertionPolicy) {
 	if len(t.Nodes) == 0 {
-		t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil})
+		t.Nodes = append(t.Nodes, Node{IsLeaf: true, Entries: nil, Parent: -1})
 		t.RootIndex = 0
 	}
 
@@ -63,7 +33,7 @@ func (t *RTree) Insert(bb BBox, dataIndex int, policy InsertionPolicy) {
 
 	current := leaf
 	for current != t.RootIndex {
-		parent := t.findParent(current)
+		parent := t.Nodes[current].Parent
 		for i := range t.Nodes[parent].Entries {
 			e := &t.Nodes[parent].Entries[i]
 			if e.Index == current {
@@ -99,8 +69,11 @@ func (t *RTree) joinRoots(r1, r2 int) {
 				Index: r2,
 			},
 		},
+		Parent: -1,
 	})
 	t.RootIndex = len(t.Nodes) - 1
+	t.Nodes[r1].Parent = len(t.Nodes) - 1
+	t.Nodes[r2].Parent = len(t.Nodes) - 1
 }
 
 func (t *RTree) adjustTree(n, nn int, policy InsertionPolicy) (int, int) {
@@ -108,7 +81,7 @@ func (t *RTree) adjustTree(n, nn int, policy InsertionPolicy) (int, int) {
 		if n == t.RootIndex {
 			return n, nn
 		}
-		parent := t.findParent(n)
+		parent := t.Nodes[n].Parent
 		parentEntry := -1
 		for i, entry := range t.Nodes[parent].Entries {
 			if entry.Index == n {
@@ -126,6 +99,7 @@ func (t *RTree) adjustTree(n, nn int, policy InsertionPolicy) (int, int) {
 				Index: nn,
 			}
 			t.Nodes[parent].Entries = append(t.Nodes[parent].Entries, newEntry)
+			t.Nodes[nn].Parent = parent
 			if len(t.Nodes[parent].Entries) > policy.maxChildren {
 				pp = t.splitNode(parent, policy)
 			}
@@ -194,10 +168,15 @@ func (t *RTree) splitNode(n int, policy InsertionPolicy) int {
 	// Use the existing node for A, and create a new node for B.
 	t.Nodes[n].Entries = entriesA
 	t.Nodes = append(t.Nodes, Node{
-		//ParentIndex: -1,
 		IsLeaf:  t.Nodes[n].IsLeaf,
 		Entries: entriesB,
+		Parent:  -1,
 	})
+	if !t.Nodes[n].IsLeaf {
+		for _, entry := range entriesB {
+			t.Nodes[entry.Index].Parent = len(t.Nodes) - 1
+		}
+	}
 	return len(t.Nodes) - 1
 }
 
